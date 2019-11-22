@@ -1,0 +1,16 @@
+{
+  "name": "randalthor-dropboxapi",
+  "version": "1.0.0",
+  "description": "Client Wrapper for Dropbox Node API",
+  "main": "client.js",
+  "dependencies": {
+    "dropbox": "^4.0.30",
+    "isomorphic-fetch": "^2.2.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "RandAlThor",
+  "license": "ISC"
+}
