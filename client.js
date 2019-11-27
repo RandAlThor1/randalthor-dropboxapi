@@ -2,6 +2,10 @@ const Dropbox = require("dropbox").Dropbox;
 const isoFetch = require("isomorphic-fetch");
 const fs = require("fs");
 const path = require("path");
+const { promisify } = require("util");
+
+const writeFile = promisify(fs.writeFile);
+const readFile = promisify(fs.readFile);
 
 class Client {
   constructor(ACCESS_TOKEN) {
@@ -14,96 +18,63 @@ class Client {
     this.dpx = dpx;
   }
 
-  uploadLocalSync(location, options) {
+  async uploadLocalSync(location, options) {
     if (!options) {
       options = {
         path: "/" + path.basename(location),
         mode: "overwrite"
       };
     }
-    options.contents = fs.readFileSync(location);
-    const imageStats = fs.statSync(location);
-    if (imageStats.size < this.UPLOAD_FILE_SIZE_LIMIT) {
-      this.dpx
-        .filesUploadSync(options)
-        .then(res => {
-          console.log(res);
-        })
-        .catch(err => {
-          console.error(err);
-        });
-    }
-  }
-
-  async uploadLocal(location, options) {
-    if (!options) {
-      options = {
-        path: "/" + path.basename(location),
-        mode: "overwrite"
-      };
-    }
-    fs.readFile(location, (err, data) => {
-      if (err) console.log(err);
-      else {
-        options.contents = data;
-        fs.stat(location, (error, stats) => {
-          if (error) console.error(error);
-          else {
-            if (stats.size < this.UPLOAD_FILE_SIZE_LIMIT) {
-              this.dpx
-                .filesUpload(options)
-                .then(res => {
-                  console.log(res);
-                })
-                .catch(er => {
-                  console.log(er);
-                });
-            }
-          }
-        });
-      }
-    });
-  }
-
-  async downloadLocal(image, location, options) {
-    if (!options) options = {};
-    if (!location) location = "";
     try {
-      let result = await this.dpx.filesDownload({ path: "/" + image }, options);
-      if (!result) console.log("Error Downloading image Locally");
-      fs.writeFile(location + image, result.fileBinary, err => {
-        if (err) console.log(err);
-      });
+      const image = await readFile(location);
+      options.contents = image;
+      if (image.length < this.UPLOAD_FILE_SIZE_LIMIT) {
+        await this.dpx.filesUpload(options);
+      }
     } catch (error) {
       console.error(error);
     }
   }
 
-  downloadLocalSync(image, location, options) {
-    if (!options) options = {};
-    if (!location) location = "";
-    this.dpx
-      .filesDownload({ path: "/" + image }, options)
-      .then(res => {
-        fs.writeFileSync(location + image, res.fileBinary);
-      })
-      .catch(err => {
-        console.error(err);
-      });
+  async uploadBinarySync(data, options) {
+    if (!options) {
+      options = {
+        path: "/" + path.basename(location),
+        mode: "overwrite"
+      };
+    }
+    options.contents = data;
+    if (data.length < this.UPLOAD_FILE_SIZE_LIMIT) {
+      try {
+        await this.dpx.filesUpload(options);
+      } catch (error) {
+        console.error(error);
+      }
+    }
   }
 
-  downloadBinarySync(image, location, options) {
+  async downloadLocalSync(image, location, options) {
     if (!options) options = {};
     if (!location) location = "";
-    this.dpx
-      .filesDownload({ path: "/" + image }, options)
-      .then(res => {
-        return res.fileBinary;
-      })
-      .catch(err => {
-        console.log(err);
-        return undefined;
-      });
+    try {
+      const binary = await this.downloadBinarySync(image, options);
+      await writeFile(location + image, binary);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async downloadBinarySync(image, options) {
+    if (!options) options = {};
+    try {
+      const result = await this.dpx.filesDownload(
+        { path: "/" + image },
+        options
+      );
+      return result.fileBinary;
+    } catch (error) {
+      console.error(error);
+    }
   }
 }
 
